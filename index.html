@@ -951,6 +951,28 @@
             color: var(--text-primary);
             font-weight: 500;
         }
+
+        /* copy-email button */
+        .copy-email-btn {
+            background: rgba(139, 92, 246, 0.10);
+            border: 1px solid rgba(139, 92, 246, 0.20);
+            color: var(--text-secondary);
+            padding: 2px 12px;
+            border-radius: 60px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .copy-email-btn:hover {
+            background: rgba(139, 92, 246, 0.20);
+            border-color: var(--purple);
+            color: var(--text-primary);
+        }
+
         .contact-socials {
             display: flex;
             gap: 12px;
@@ -1431,9 +1453,9 @@
                     powerful backend solutions.
                 </p>
                 <div class="hero-buttons">
-                    <!-- ✅ "Hire Me" with pre‑written subject & body -->
+                    <!-- ✅ "Hire Me" with mailto — works natively, stays on page -->
                     <a href="mailto:haleemashadab4@gmail.com?subject=Hire%20Me%20Inquiry&body=Hello%20Haleema%2C%0A%0AI%20came%20across%20your%20portfolio%20and%20would%20like%20to%20discuss%20a%20project%20with%20you.%20Please%20let%20me%20know%20your%20availability.%0A%0AThank%20you!"
-                    class="btn-primary">
+                    class="btn-primary" id="hireMeBtn">
                     <i class="fas fa-paper-plane"></i> Hire Me
                 </a>
                 <a href="#projects" class="btn-secondary"><i class="fas fa-eye"></i> View Projects</a>
@@ -1790,7 +1812,13 @@
                 <p>Have a project in mind or just want to say hello? I'm always open to interesting conversations.</p>
                 <div class="contact-item">
                     <div class="icon-box"><i class="fas fa-envelope"></i></div>
-                    <div class="info"><strong>Email</strong><br />haleemashadab4@gmail.com</div>
+                    <div class="info">
+                        <strong>Email</strong><br />
+                        haleemashadab4@gmail.com
+                        <button class="copy-email-btn" id="copyEmailBtn" title="Copy email to clipboard">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
                 </div>
                 <div class="contact-item">
                     <div class="icon-box"><i class="fas fa-phone-alt"></i></div>
@@ -1807,7 +1835,7 @@
                 </div>
             </div>
 
-            <!-- ✅ CONTACT FORM with default message if empty -->
+            <!-- ✅ CONTACT FORM with mailto fallback -->
             <form class="contact-form" id="contactForm">
                 <div class="form-group">
                     <label for="name"><i class="fas fa-user"></i> Your Name</label>
@@ -2085,7 +2113,39 @@
         }, 5000);
     }
 
-    // ---------- CONTACT FORM: send via mailto with default message ----------
+    // ---------- COPY EMAIL (fallback) ----------
+    document.getElementById('copyEmailBtn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        const email = 'haleemashadab4@gmail.com';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(email).then(() => {
+                showToast('Copied!', 'Email address copied to clipboard.', 'fa-copy', '#8B5CF6');
+            }).catch(() => {
+                fallbackCopy(email);
+            });
+        } else {
+            fallbackCopy(email);
+        }
+    });
+
+    function fallbackCopy(text) {
+        const el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.left = '-9999px';
+        el.style.top = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        try {
+            document.execCommand('copy');
+            showToast('Copied!', 'Email address copied to clipboard.', 'fa-copy', '#8B5CF6');
+        } catch (err) {
+            showToast('Error', 'Could not copy. Please select and copy manually.', 'fa-exclamation-circle', '#F59E0B');
+        }
+        document.body.removeChild(el);
+    }
+
+    // ---------- CONTACT FORM: mailto with fallback copy ----------
     document.getElementById('contactForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -2094,27 +2154,59 @@
         const subject = document.getElementById('subject').value.trim() || 'Contact Form Inquiry';
         let message = document.getElementById('message').value.trim();
 
-        // If message is empty, use a friendly default
-        if (!message) {
-            message =
-                "Hi Haleema, I'm reaching out through your portfolio. I'd love to work with you on a project. Please get back to me when you can.";
-        }
-
         if (!name || !email) {
             showToast('Missing Info', 'Please fill in your name and email.', 'fa-exclamation-circle', '#F59E0B');
             return;
         }
 
-        const body =
-            `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
+        if (!message) {
+            message = "Hi Haleema, I'm reaching out through your portfolio. I'd love to work with you on a project. Please get back to me when you can.";
+        }
+
+        const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
         const mailtoLink =
             `mailto:haleemashadab4@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-        window.location.href = mailtoLink;
+        // Try to open mailto
+        const win = window.open(mailtoLink, '_blank');
+        // If window.open returns null or undefined, mailto might have been blocked or no client
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+            // fallback: try location.href
+            window.location.href = mailtoLink;
+        }
 
-        showToast('Message Sent!', 'Your email client has been opened with your message.');
+        showToast('Opening Email', 'Your email client should open with your message.', 'fa-envelope', '#06B6D4');
+
+        // Also offer copy fallback after a moment
+        setTimeout(() => {
+            const shouldCopy = confirm(
+                'If your email client didn\'t open, click OK to copy the message to your clipboard and send manually.');
+            if (shouldCopy) {
+                const fullMessage =
+                    `To: haleemashadab4@gmail.com\nSubject: ${subject}\n\n${body}`;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(fullMessage).then(() => {
+                        showToast('Copied!', 'Message copied to clipboard. Paste it in your email client.',
+                            'fa-copy', '#8B5CF6');
+                    }).catch(() => {
+                        fallbackCopy(fullMessage);
+                    });
+                } else {
+                    fallbackCopy(fullMessage);
+                }
+            }
+        }, 1500);
 
         this.reset();
+    });
+
+    // ---------- HIRE ME BUTTON: toast feedback ----------
+    document.getElementById('hireMeBtn').addEventListener('click', function(e) {
+        // Let the mailto open natively; show a toast to inform the user.
+        setTimeout(() => {
+            showToast('Opening Email', 'Your email client should open with a pre‑filled message.', 'fa-envelope',
+                '#06B6D4');
+        }, 100);
     });
 
     console.log('🚀 Haleema Shahzad Portfolio loaded successfully.');
